@@ -1,0 +1,27 @@
+{
+
+    "manifest_version": 1,
+    "name": "WAM Stock Search",
+    "version": "0.1",
+  
+    "description": "Adds a browser action icon to the toolbar. Click the button to enter image identifiers beginning with 'WAM'. A new tab opens displaying the results of searching the WAM stock site (weanimalsmedia.org).",
+    "icons": {
+      "48": "icons/wam-48.png",
+      "96": "icons/wam-96.png"
+    },
+  
+    "permissions": [
+      "activeTab",
+      "tabs"
+    ],
+  
+    "browser_action": {
+      "default_icon": "icons/wam-32.png",
+      "default_title": "We Animals Stock Site Search",
+      "default_popup": "popup/input_image_search.html"
+    },
+  
+    "web_accessible_resources": []
+  
+  }
+  
