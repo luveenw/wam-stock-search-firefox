@@ -9,17 +9,32 @@
 
 <body>
     <div id="popup-content">
-        <div class="text-input">
-            <label for="searchtext">Search for:</label>
-            <input type="text" id="searchtext"></input>
+        <div id="error-content" class="hidden">
+            <p>Can't perform search.</p>
+        </div>
+        <div class="search-input">
+            <!-- <label for="searchtext">WAM ID (separate multiple IDs with spaces)</label> -->
+            <input type="text" id="searchtext" placeholder="WAM ID (separate multiple IDs with spaces)"></input>
             <input class="button submit" type="button" id="searchsubmit" value="Search">
         </div>
-
-    </div>
-    <div id="error-content" class="hidden">
-        <p>Can't perform search.</p>
+        <div id="orgs-container">
+            <!-- <label for="orgs-select">Org</label> -->
+            <select id="orgs-select">
+                <!-- <option disabled selected value></option> -->
+            </select>
+            <input class="button submit" type="button" id="orgsubmit" value="Show Org Links">
+            <div id="org-links" />
+        </div>
     </div>
     <script src="input_image_search.js"></script>
+
+    <template id="org-select-row">
+        <option></option>
+    </template>
+
+    <template id="org-link-row">
+        <div class="org-link"><a href="#" target="_blank"/></div>
+    </template>
 </body>
 
 </html>

@@ -1,13 +1,15 @@
 (function () {
+    console.log('Loading WAM Stock Search content script...')
     /**
      * Check and set a global guard variable.
      * If this content script is injected into the same page again,
      * it will do nothing next time.
      */
-    if (window.hasRun) {
+    /* if (window.hasRun) {
+        console.log('Already loaded WAM Stock Search content script.')
         return;
     }
-    window.hasRun = true;
+    window.hasRun = true; */
 
     const SPLIT_STR = " ";
     const JOIN_STR = "+OR+";
@@ -24,7 +26,8 @@
         browser.tabs.create({
             url: `https://stock.weanimalsmedia.org/search/?searchQuery=${formatInput(searchString)}&assetType=default`,
             active: true
-        });
+        })
+            .catch(e => console.error(`Error creating new tab: ${e}`));
 
 
     /**
