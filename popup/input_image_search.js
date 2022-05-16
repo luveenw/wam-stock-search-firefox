@@ -99,7 +99,7 @@ async function loadSavedSearch() {
 
 async function loadOrgData() {
     console.log('Loading orgs data...');
-    let data = await (await fetch('./data.json')).json();
+    let data = await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data.json')).json();
     ORGS_DATA = Object.keys(data).sort().reduce(
         (obj, key) => {
             obj[key] = data[key];
