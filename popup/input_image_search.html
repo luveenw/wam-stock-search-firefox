@@ -13,26 +13,33 @@
             <p>Can't perform search.</p>
         </div>
         <div class="search-input">
-            <!-- <label for="searchtext">WAM ID (separate multiple IDs with spaces)</label> -->
-            <input type="text" id="searchtext" placeholder="WAM ID (separate multiple IDs with spaces)"></input>
+            <label for="searchtext">Search term(s)</label>
+            <input type="text" id="searchtext" placeholder="e.g. Andrew Skowron, WAM1234"></input>
+            <select id="search-type-select" />
             <input class="button submit" type="button" id="search-submit" value="Search">
         </div>
         <div id="orgs-container">
+            <label for="orgs-select">Show URLs for org</label>
             <select id="orgs-select">
                 <option disabled selected value></option>
             </select>
             <div id="org-links" />
         </div>
     </div>
-    <script src="input_image_search.js"></script>
 
     <template id="org-select-row">
         <option></option>
     </template>
 
-    <template id="org-link-row">
-        <div class="org-link"><a href="#" target="_blank"/></div>
+    <template id="search-type-row">
+        <option></option>
     </template>
+
+    <template id="org-link-row">
+        <div class="org-link"><a href="#" target="_blank" /></div>
+    </template>
+
+    <script src="input_image_search.js"></script>
 </body>
 
 </html>

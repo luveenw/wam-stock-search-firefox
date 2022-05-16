@@ -1,12 +1,21 @@
 const SEARCH_INPUT_SELECTOR = '#searchtext';
 const ORG_SELECT_SELECTOR = '#orgs-select';
 const SEARCH_SUBMIT_SELECTOR = '#search-submit';
+const SEARCH_TYPE_SELECT_SELECTOR = '#search-type-select';
 const SPLIT_STR = " ";
-const JOIN_STR = "+OR+";
+const ANY_JOIN_STR = "+OR+";
+const ALL_JOIN_STR = "+AND+";
+const EXACT_JOIN_STR = "+";
+const SEARCH_TYPES = {
+    "any terms": ANY_JOIN_STR,
+    "all terms": ALL_JOIN_STR,
+    "exact match": EXACT_JOIN_STR
+};
 
-let SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
-let ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
-let SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
+const SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
+const ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
+const SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
+const SEARCH_TYPE_SELECT = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
 
 let ORGS_DATA = null;
 
@@ -24,7 +33,14 @@ async function registerHandlers() {
 /**
  * Format input string to fit in the search query for the WAM stock site
  */
-let formatInput = (str) => str.split(SPLIT_STR).join(JOIN_STR);
+let formatInput = (str) => {
+    let joinStr = !!SEARCH_TYPE_SELECT.value && SEARCH_TYPE_SELECT.value || EXACT_JOIN_STR;
+    let result = str.split(SPLIT_STR).join(joinStr);
+    if (joinStr === EXACT_JOIN_STR) {
+        result = `"${result}"`;
+    }
+    return result;
+}
 
 /**
  * Just log the error to the console.
@@ -34,6 +50,11 @@ let reportError = (error) => console.error(`Could not search: ${error}`);
 async function saveSearch(searchString) {
     console.log(`Saving search string ${searchString}...`);
     await browser.storage.local.set({ searchString });
+}
+
+async function saveSearchType(searchType) {
+    console.log(`Saving search type ${searchType}...`);
+    await browser.storage.local.set({ searchType });
 }
 
 function sanitize(value) {
@@ -53,6 +74,13 @@ async function handleSearchSubmit() {
             active: true
         })
             .catch(reportError);
+    }
+}
+
+async function handleSearchTypeSelect() {
+    let searchType = SEARCH_TYPE_SELECT.value;
+    if (searchType) {
+        saveSearchType(searchType);
     }
 }
 
@@ -83,6 +111,7 @@ async function handleOrgSelect() {
 
 async function loadSavedData() {
     loadSavedSearch();
+    loadSavedSearchType();
     // loadSavedOrgSelect();
 }
 
@@ -95,6 +124,28 @@ async function loadSavedSearch() {
     }
     SEARCH_INPUT.value = searchString;
     //saveSearch(searchString);
+}
+
+async function loadSavedSearchType() {
+    console.log('Loading saved search type...');
+    let { searchType } = await browser.storage.local.get('searchType');
+    console.log(`Saved search type: ${searchType}`);
+    if (!searchType) {
+        searchType = ANY_JOIN_STR;
+    }
+    SEARCH_TYPE_SELECT.value = searchType;
+}
+
+
+async function loadSearchTypes() {
+    console.log('Loading search types...');
+    // const typeSelect = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
+    let optionTemplate = document.querySelector("#search-type-row");
+    console.log('search type option template:', optionTemplate);
+    for (let type of Object.keys(SEARCH_TYPES)) {
+        console.log(`Adding search type ${type}...`);
+        await addOptionToSelect(SEARCH_TYPE_SELECT, optionTemplate, { value: SEARCH_TYPES[type], innerText: type, title: type });
+    };
 }
 
 async function loadOrgData() {
@@ -114,25 +165,31 @@ async function loadOrgData() {
 }
 
 async function populateOrgsSelect() {
-    let select = document.querySelector("#orgs-select");
     let optionTemplate = document.querySelector("#org-select-row");
+    console.log('org option template:', optionTemplate);
     for (let orgName of Object.keys(ORGS_DATA)) {
-        let clone = optionTemplate.content.cloneNode(true);
-        let option = clone.querySelector("option");
-        option.value = orgName;
-        option.innerText = orgName;
-        option.title = orgName;
-        select.append(clone);
+        await addOptionToSelect(ORG_SELECT, optionTemplate, { value: orgName, innerText: orgName, title: orgName });
     }
 }
 
-/**
- * Listen for clicks on the buttons, and send the appropriate message to
- * the content script in the page.
- */
+async function addOptionToSelect(select, optionTemplate, data) {
+    let clone = optionTemplate.content.cloneNode(true);
+    let option = clone.querySelector("option");
+    let { value, title, innerText } = data;
+    option.value = value;
+    option.innerText = innerText;
+    option.title = title;
+    select.append(clone);
+}
+
+async function loadFixtures() {
+    loadSearchTypes();
+    await loadOrgData();
+}
+
 async function init() {
-    loadOrgData();
-    loadSavedData();
+    await loadFixtures();
+    await loadSavedData();
     registerHandlers();
     // listenForClicks();
 }
