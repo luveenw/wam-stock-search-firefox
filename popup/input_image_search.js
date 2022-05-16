@@ -2,6 +2,20 @@ const SEARCH_INPUT_SELECTOR = '#searchtext';
 const ORG_SELECT_SELECTOR = '#orgs-select';
 const SEARCH_SUBMIT_SELECTOR = '#search-submit';
 const SEARCH_TYPE_SELECT_SELECTOR = '#search-type-select';
+const SEARCH_TYPE_OPTION_TEMPLATE_SELECTOR = "#search-type-row";
+const ORG_OPTION_TEMPLATE_SELECTOR = "#org-select-row";
+const ERROR_CONTENT_SELECTOR = "#error-content";
+const POPUP_CONTENT_SELECTOR = "#popup-content";
+
+const SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
+const ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
+const SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
+const SEARCH_TYPE_SELECT = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
+const SEARCH_TYPE_OPTION_TEMPLATE = document.querySelector(SEARCH_TYPE_OPTION_TEMPLATE_SELECTOR);
+const ORG_OPTION_TEMPLATE = document.querySelector(ORG_OPTION_TEMPLATE_SELECTOR);
+const ERROR_CONTENT = document.querySelector(ERROR_CONTENT_SELECTOR);
+const POPUP_CONTENT = document.querySelector(POPUP_CONTENT_SELECTOR);
+
 const SPLIT_STR = " ";
 const ANY_JOIN_STR = "+OR+";
 const ALL_JOIN_STR = "+AND+";
@@ -11,11 +25,6 @@ const SEARCH_TYPES = {
     "all terms": ALL_JOIN_STR,
     "exact match": EXACT_JOIN_STR
 };
-
-const SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
-const ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
-const SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
-const SEARCH_TYPE_SELECT = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
 
 let ORGS_DATA = null;
 
@@ -90,21 +99,24 @@ async function removeAllChildrenIn(parent) {
     }
 }
 
+const ORG_LINKS_SELECTOR = "#org-links";
+const ORG_LINK_TEMPLATE_SELECTOR = "#org-link-row";
+const ORG_LINKS = document.querySelector(ORG_LINKS_SELECTOR);
+const ORG_LINK_TEMPLATE = document.querySelector(ORG_LINK_TEMPLATE_SELECTOR);
+
 async function handleOrgSelect() {
     let selectedValue = ORG_SELECT.value;
     if (selectedValue in ORGS_DATA) {
         let links = ORGS_DATA[selectedValue];
-        let orgLinks = document.querySelector("#org-links");
-        removeAllChildrenIn(orgLinks);
-        let orgLinkTemplate = document.querySelector("#org-link-row");
+        removeAllChildrenIn(ORG_LINKS);
         console.log('Links for', selectedValue, ': ', links);
         for (let link of links) {
             console.log('Adding link', link, '...');
-            let clone = orgLinkTemplate.content.cloneNode(true);
+            let clone = ORG_LINK_TEMPLATE.content.cloneNode(true);
             let a = clone.querySelector("a");
             a.href = link;
             a.innerText = link;
-            orgLinks.append(clone);
+            ORG_LINKS.append(clone);
         }
     }
 }
@@ -140,11 +152,10 @@ async function loadSavedSearchType() {
 async function loadSearchTypes() {
     console.log('Loading search types...');
     // const typeSelect = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
-    let optionTemplate = document.querySelector("#search-type-row");
-    console.log('search type option template:', optionTemplate);
+    console.log('search type option template:', SEARCH_TYPE_OPTION_TEMPLATE);
     for (let type of Object.keys(SEARCH_TYPES)) {
         console.log(`Adding search type ${type}...`);
-        await addOptionToSelect(SEARCH_TYPE_SELECT, optionTemplate, { value: SEARCH_TYPES[type], innerText: type, title: type });
+        await addOptionToSelect(SEARCH_TYPE_SELECT, SEARCH_TYPE_OPTION_TEMPLATE, { value: SEARCH_TYPES[type], innerText: type, title: type });
     };
 }
 
@@ -165,10 +176,9 @@ async function loadOrgData() {
 }
 
 async function populateOrgsSelect() {
-    let optionTemplate = document.querySelector("#org-select-row");
-    console.log('org option template:', optionTemplate);
+    console.log('org option template:', ORG_OPTION_TEMPLATE);
     for (let orgName of Object.keys(ORGS_DATA)) {
-        await addOptionToSelect(ORG_SELECT, optionTemplate, { value: orgName, innerText: orgName, title: orgName });
+        await addOptionToSelect(ORG_SELECT, ORG_OPTION_TEMPLATE, { value: orgName, innerText: orgName, title: orgName });
     }
 }
 
@@ -199,8 +209,8 @@ async function init() {
  * Display the popup's error message, and hide the normal UI.
  */
 function reportExecuteScriptError(error) {
-    document.querySelector("#popup-content").classList.add("hidden");
-    document.querySelector("#error-content").classList.remove("hidden");
+    POPUP_CONTENT.classList.add("hidden");
+    ERROR_CONTENT.classList.remove("hidden");
     console.error(`Failed to execute WAM Stock Search content script: ${error}`);
 }
 
