@@ -1,18 +1,25 @@
 const SEARCH_INPUT_SELECTOR = '#searchtext';
 const ORG_SELECT_SELECTOR = '#orgs-select';
+const SEARCH_SUBMIT_SELECTOR = '#search-submit';
 const SPLIT_STR = " ";
 const JOIN_STR = "+OR+";
 
-let searchInput = document.querySelector(SEARCH_INPUT_SELECTOR);
-let orgSelect = document.querySelector(ORG_SELECT_SELECTOR);
+let SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
+let ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
+let SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
+
 let ORGS_DATA = null;
 
-searchInput.addEventListener('input', e => saveSearch(e.target.value));
-searchInput.addEventListener('keyup', e => {
-    if (e.keyCode === 13) {
-        submitSearch();
-    }
-});
+async function registerHandlers() {
+    SEARCH_INPUT.addEventListener('input', e => saveSearch(e.target.value));
+    SEARCH_INPUT.addEventListener('keyup', e => {
+        if (e.keyCode === 13) {
+            handleSearchSubmit();
+        }
+    });
+    SEARCH_SUBMIT.addEventListener('click', handleSearchSubmit);
+    ORG_SELECT.addEventListener('change', handleOrgSelect);
+}
 
 /**
  * Format input string to fit in the search query for the WAM stock site
@@ -37,8 +44,8 @@ function sanitize(value) {
 /**
  * open a new tab with results of the search input.
  */
-let searchString = sanitize(searchInput.value);
-async function submitSearch() {
+async function handleSearchSubmit() {
+    let searchString = sanitize(SEARCH_INPUT.value);
     if (searchString) {
         saveSearch(searchString);
         browser.tabs.create({
@@ -49,26 +56,14 @@ async function submitSearch() {
     }
 }
 
-async function handleOrgSelect() {
-    let selectedValue = orgSelect.value;
-    if (selectedValue in ORGS_DATA) {
-        let links = ORGS_DATA[selectedValue];
-        console.log('Links for', selectedValue, ': ', links);
-        for (let link of links) {
-            console.log(link);
-        }
-    }
-    // saveOrg(selectedValue);
-}
-
 async function removeAllChildrenIn(parent) {
     while (parent.firstChild) {
         parent.removeChild(parent.firstChild);
     }
 }
 
-async function handleOrgSubmit() {
-    let selectedValue = orgSelect.value;
+async function handleOrgSelect() {
+    let selectedValue = ORG_SELECT.value;
     if (selectedValue in ORGS_DATA) {
         let links = ORGS_DATA[selectedValue];
         let orgLinks = document.querySelector("#org-links");
@@ -86,31 +81,6 @@ async function handleOrgSubmit() {
     }
 }
 
-async function listenForClicks() {
-    document.addEventListener("click", (e) => {
-        let targetId = e.target.id;
-        console.log(`event target ID: ${targetId}`);
-        switch (targetId) {
-            case 'submit':
-                submitSearch();
-                break;
-            case 'orgs-select':
-                handleOrgSelect();
-                break;
-            case 'orgsubmit':
-                handleOrgSubmit();
-                break;
-            default:
-                console.log(`Unknown event target ID ${targetId}`);
-        }
-        /* if (classList.contains("submit")) {
-            submitSearch();
-        } else if (classList.contains("org-submit")) {
-            handleOrgSelected();
-        } */
-    });
-}
-
 async function loadSavedData() {
     loadSavedSearch();
     // loadSavedOrgSelect();
@@ -123,7 +93,7 @@ async function loadSavedSearch() {
     if (!searchString) {
         searchString = '';
     }
-    searchInput.value = searchString;
+    SEARCH_INPUT.value = searchString;
     //saveSearch(searchString);
 }
 
@@ -163,7 +133,8 @@ async function populateOrgsSelect() {
 async function init() {
     loadOrgData();
     loadSavedData();
-    listenForClicks();
+    registerHandlers();
+    // listenForClicks();
 }
 
 /**
@@ -189,7 +160,7 @@ async function loadSavedOrgSelect() {
     let { selectedOrg } = await browser.storage.local.get('selectedOrg');
     console.log(`Saved selected org: ${selectedOrg}`);
     if (!!selectedOrg && (selectedOrg in ORGS_DATA)) {
-        orgSelect.value = selectedValue;
+        ORG_SELECT.value = selectedValue;
     }
 }
 
