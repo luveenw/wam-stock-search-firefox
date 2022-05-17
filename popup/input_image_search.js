@@ -36,7 +36,7 @@ let ORGS_DATA = null;
 let DATA_VERSION = null;
 
 async function registerHandlers() {
-    SEARCH_INPUT.addEventListener('input', e => saveDataToStorage('searchString', e.target.value));
+    SEARCH_INPUT.addEventListener('input', async function (e) { await saveDataToStorage('searchString', e.target.value); });
     SEARCH_INPUT.addEventListener('keyup', e => {
         if (e.keyCode === 13) {
             handleSearchSubmit();
@@ -52,7 +52,7 @@ async function registerHandlers() {
 async function handleSearchSubmit() {
     let searchString = sanitize(SEARCH_INPUT.value);
     if (searchString) {
-        saveDataToStorage('searchString', searchString);
+        await saveDataToStorage('searchString', searchString);
         browser.tabs.create({
             url: `https://stock.weanimalsmedia.org/search/?searchQuery=${formatInput(searchString)}&assetType=default`,
             active: true
@@ -64,7 +64,7 @@ async function handleSearchSubmit() {
 async function handleSearchTypeSelect() {
     let searchType = SEARCH_TYPE_SELECT.value;
     if (searchType) {
-        saveDataToStorage('searchType', searchType);
+        await saveDataToStorage('searchType', searchType);
     }
 }
 
@@ -100,7 +100,7 @@ async function loadSavedSearchData() {
 
 async function loadSavedSearch() {
     console.log('Loading saved search...');
-    let { searchString } = loadDataFromStorage('searchString');
+    let { searchString } = await loadDataFromStorage('searchString');
     console.log(`Saved search string: ${searchString}`);
     if (!searchString) {
         searchString = '';
@@ -111,7 +111,7 @@ async function loadSavedSearch() {
 
 async function loadSavedSearchType() {
     console.log('Loading saved search type...');
-    let { searchType } = loadDataFromStorage('searchType');
+    let { searchType } = await loadDataFromStorage('searchType');
     console.log(`Saved search type: ${searchType}`);
     if (!searchType) {
         searchType = ANY_JOIN_STR;
@@ -130,24 +130,20 @@ async function loadSearchTypes() {
     };
 }
 
-async function loadDataVersion() {
-    console.log('Loading data version...');
-    const savedDataVersion = loadDataFromStorage('dataVersion');
-    DATA_VERSION = !!savedDataVersion && savedDataVersion || fetchDataVersion().version;
-    console.log('JSON Data Version:', DATA_VERSION);
-    !savedDataVersion && saveDataToStorage('dataVersion', DATA_VERSION);
-}
-
 async function fetchDataVersion() {
-    return await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/data_version.json').json());
+    return (await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/data_version.json')).json()).version;
 }
 
 async function checkDataVersion() {
-    let localVersion = loadDataFromStorage('dataVersion');
-    let remoteVersion = fetchDataVersion().version;
+    console.log('Checking data version...')
+    let remoteVersion = await fetchDataVersion();
+    console.log('remote version:', remoteVersion);
 
-    if (!localVersion || (localVersion < remoteVersion)) {
-        let message = !localVersion ? 'No local version number found' : `Found newer data version ${remoteVersion}`;
+    let localVersion = await browser.storage.local.get('dataVersion');
+    console.log('local version:', localVersion['dataVersion']);
+
+    if (!Object.keys(localVersion).length || localVersion['dataVersion'] < remoteVersion) {
+        let message = (localVersion['dataVersion'] < 0) ? 'No local version number found' : `Found newer data version ${remoteVersion}`;
         console.log(`${message}. Deleting local copy...`);
         deleteDataFromStorage('orgsData');
     }
@@ -156,14 +152,16 @@ async function checkDataVersion() {
 }
 
 async function fetchOrgsData() {
-    return await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/orgs_data.json').json());
+    console.log('Fetching orgs data from remote...');
+    return (await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/orgs_data.json')).json());
 }
 
 async function loadOrgsData() {
     console.log('Loading orgs data...');
-    const savedData = loadDataFromStorage('orgsData');
-    let data = !!savedData && savedData || fetchOrgsData();
-    ORGS_DATA = !!savedData && savedData || Object.keys(data).sort().reduce(
+    const savedData = await loadDataFromStorage('orgsData');
+    let data = !!Object.keys(savedData).length && savedData || (await fetchOrgsData());
+    console.log('fetched/retrieved orgs data:', data);
+    ORGS_DATA = !!Object.keys(savedData).length && savedData || Object.keys(data).sort().reduce(
         (obj, key) => {
             obj[key] = data[key];
             return obj;
@@ -172,7 +170,7 @@ async function loadOrgsData() {
     );
     console.log('JSON Data:', ORGS_DATA);
     populateOrgsSelect();
-    !savedData && saveDataToStorage('orgsData', ORGS_DATA);
+    !savedData && (await saveDataToStorage('orgsData', ORGS_DATA));
 }
 
 async function populateOrgsSelect() {
@@ -193,18 +191,17 @@ async function addOptionToSelect(select, optionTemplate, data) {
 }
 
 async function loadFixtures() {
+    console.log('Loading fixtures...');
     loadSearchTypes();
     await loadOrgsData();
 }
 
 async function init() {
     await checkDataVersion();
-    // await loadDataVersion();
     await loadFixtures();
-    saveDataToStorage('dataVersion', DATA_VERSION);
+    await saveDataToStorage('dataVersion', DATA_VERSION);
     await loadSavedSearchData();
     registerHandlers();
-    // listenForClicks();
 }
 
 /**
@@ -246,7 +243,7 @@ async function saveDataToStorage(key, data) {
 
 async function loadDataFromStorage(key) {
     console.log(`Loading ${key} from local storage...`);
-    return await browser.storage.local.get(key);
+    return browser.storage.local.get(key);
 }
 
 async function deleteDataFromStorage(key) {
