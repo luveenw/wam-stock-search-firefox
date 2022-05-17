@@ -4,8 +4,11 @@ const SEARCH_SUBMIT_SELECTOR = '#search-submit';
 const SEARCH_TYPE_SELECT_SELECTOR = '#search-type-select';
 const SEARCH_TYPE_OPTION_TEMPLATE_SELECTOR = "#search-type-row";
 const ORG_OPTION_TEMPLATE_SELECTOR = "#org-select-row";
+const ORG_LINKS_SELECTOR = "#org-links";
+const ORG_LINK_TEMPLATE_SELECTOR = "#org-link-row";
 const ERROR_CONTENT_SELECTOR = "#error-content";
 const POPUP_CONTENT_SELECTOR = "#popup-content";
+
 
 const SEARCH_INPUT = document.querySelector(SEARCH_INPUT_SELECTOR);
 const ORG_SELECT = document.querySelector(ORG_SELECT_SELECTOR);
@@ -13,8 +16,11 @@ const SEARCH_SUBMIT = document.querySelector(SEARCH_SUBMIT_SELECTOR);
 const SEARCH_TYPE_SELECT = document.querySelector(SEARCH_TYPE_SELECT_SELECTOR);
 const SEARCH_TYPE_OPTION_TEMPLATE = document.querySelector(SEARCH_TYPE_OPTION_TEMPLATE_SELECTOR);
 const ORG_OPTION_TEMPLATE = document.querySelector(ORG_OPTION_TEMPLATE_SELECTOR);
+const ORG_LINKS = document.querySelector(ORG_LINKS_SELECTOR);
+const ORG_LINK_TEMPLATE = document.querySelector(ORG_LINK_TEMPLATE_SELECTOR);
 const ERROR_CONTENT = document.querySelector(ERROR_CONTENT_SELECTOR);
 const POPUP_CONTENT = document.querySelector(POPUP_CONTENT_SELECTOR);
+
 
 const SPLIT_STR = " ";
 const ANY_JOIN_STR = "+OR+";
@@ -27,9 +33,10 @@ const SEARCH_TYPES = {
 };
 
 let ORGS_DATA = null;
+let DATA_VERSION = null;
 
 async function registerHandlers() {
-    SEARCH_INPUT.addEventListener('input', e => saveSearch(e.target.value));
+    SEARCH_INPUT.addEventListener('input', e => saveDataToStorage('searchString', e.target.value));
     SEARCH_INPUT.addEventListener('keyup', e => {
         if (e.keyCode === 13) {
             handleSearchSubmit();
@@ -40,44 +47,12 @@ async function registerHandlers() {
 }
 
 /**
- * Format input string to fit in the search query for the WAM stock site
- */
-let formatInput = (str) => {
-    let joinStr = !!SEARCH_TYPE_SELECT.value && SEARCH_TYPE_SELECT.value || EXACT_JOIN_STR;
-    let result = str.split(SPLIT_STR).join(joinStr);
-    if (joinStr === EXACT_JOIN_STR) {
-        result = `"${result}"`;
-    }
-    return result;
-}
-
-/**
- * Just log the error to the console.
- */
-let reportError = (error) => console.error(`Could not search: ${error}`);
-
-async function saveSearch(searchString) {
-    console.log(`Saving search string ${searchString}...`);
-    await browser.storage.local.set({ searchString });
-}
-
-async function saveSearchType(searchType) {
-    console.log(`Saving search type ${searchType}...`);
-    await browser.storage.local.set({ searchType });
-}
-
-function sanitize(value) {
-    //remove leading and trailing spaces
-    return value.trim();
-}
-
-/**
  * open a new tab with results of the search input.
  */
 async function handleSearchSubmit() {
     let searchString = sanitize(SEARCH_INPUT.value);
     if (searchString) {
-        saveSearch(searchString);
+        saveDataToStorage('searchString', searchString);
         browser.tabs.create({
             url: `https://stock.weanimalsmedia.org/search/?searchQuery=${formatInput(searchString)}&assetType=default`,
             active: true
@@ -89,7 +64,7 @@ async function handleSearchSubmit() {
 async function handleSearchTypeSelect() {
     let searchType = SEARCH_TYPE_SELECT.value;
     if (searchType) {
-        saveSearchType(searchType);
+        saveDataToStorage('searchType', searchType);
     }
 }
 
@@ -99,10 +74,6 @@ async function removeAllChildrenIn(parent) {
     }
 }
 
-const ORG_LINKS_SELECTOR = "#org-links";
-const ORG_LINK_TEMPLATE_SELECTOR = "#org-link-row";
-const ORG_LINKS = document.querySelector(ORG_LINKS_SELECTOR);
-const ORG_LINK_TEMPLATE = document.querySelector(ORG_LINK_TEMPLATE_SELECTOR);
 
 async function handleOrgSelect() {
     let selectedValue = ORG_SELECT.value;
@@ -121,7 +92,7 @@ async function handleOrgSelect() {
     }
 }
 
-async function loadSavedData() {
+async function loadSavedSearchData() {
     loadSavedSearch();
     loadSavedSearchType();
     // loadSavedOrgSelect();
@@ -129,7 +100,7 @@ async function loadSavedData() {
 
 async function loadSavedSearch() {
     console.log('Loading saved search...');
-    let { searchString } = await browser.storage.local.get('searchString');
+    let { searchString } = loadDataFromStorage('searchString');
     console.log(`Saved search string: ${searchString}`);
     if (!searchString) {
         searchString = '';
@@ -140,7 +111,7 @@ async function loadSavedSearch() {
 
 async function loadSavedSearchType() {
     console.log('Loading saved search type...');
-    let { searchType } = await browser.storage.local.get('searchType');
+    let { searchType } = loadDataFromStorage('searchType');
     console.log(`Saved search type: ${searchType}`);
     if (!searchType) {
         searchType = ANY_JOIN_STR;
@@ -159,20 +130,49 @@ async function loadSearchTypes() {
     };
 }
 
-async function loadOrgData() {
+async function loadDataVersion() {
+    console.log('Loading data version...');
+    const savedDataVersion = loadDataFromStorage('dataVersion');
+    DATA_VERSION = !!savedDataVersion && savedDataVersion || fetchDataVersion().version;
+    console.log('JSON Data Version:', DATA_VERSION);
+    !savedDataVersion && saveDataToStorage('dataVersion', DATA_VERSION);
+}
+
+async function fetchDataVersion() {
+    return await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/data_version.json').json());
+}
+
+async function checkDataVersion() {
+    let localVersion = loadDataFromStorage('dataVersion');
+    let remoteVersion = fetchDataVersion().version;
+
+    if (!localVersion || (localVersion < remoteVersion)) {
+        let message = !localVersion ? 'No local version number found' : `Found newer data version ${remoteVersion}`;
+        console.log(`${message}. Deleting local copy...`);
+        deleteDataFromStorage('orgsData');
+    }
+
+    DATA_VERSION = remoteVersion;
+}
+
+async function fetchOrgsData() {
+    return await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data/orgs_data.json').json());
+}
+
+async function loadOrgsData() {
     console.log('Loading orgs data...');
-    let data = await (await fetch('https://raw.githubusercontent.com/luveenw/wam-stock-search-firefox/main/popup/data.json')).json();
-    ORGS_DATA = Object.keys(data).sort().reduce(
+    const savedData = loadDataFromStorage('orgsData');
+    let data = !!savedData && savedData || fetchOrgsData();
+    ORGS_DATA = !!savedData && savedData || Object.keys(data).sort().reduce(
         (obj, key) => {
             obj[key] = data[key];
             return obj;
         },
         {}
     );
-    console.log('JSON Data:');
-    console.log(ORGS_DATA);
+    console.log('JSON Data:', ORGS_DATA);
     populateOrgsSelect();
-    // browser.storage.local.set({ orgsData });
+    !savedData && saveDataToStorage('orgsData', ORGS_DATA);
 }
 
 async function populateOrgsSelect() {
@@ -194,12 +194,15 @@ async function addOptionToSelect(select, optionTemplate, data) {
 
 async function loadFixtures() {
     loadSearchTypes();
-    await loadOrgData();
+    await loadOrgsData();
 }
 
 async function init() {
+    await checkDataVersion();
+    // await loadDataVersion();
     await loadFixtures();
-    await loadSavedData();
+    saveDataToStorage('dataVersion', DATA_VERSION);
+    await loadSavedSearchData();
     registerHandlers();
     // listenForClicks();
 }
@@ -214,6 +217,43 @@ function reportExecuteScriptError(error) {
     console.error(`Failed to execute WAM Stock Search content script: ${error}`);
 }
 
+function sanitize(value) {
+    //remove leading and trailing spaces
+    return value.trim();
+}
+
+/**
+ * Format input string to fit in the search query for the WAM stock site
+ */
+let formatInput = (str) => {
+    let joinStr = !!SEARCH_TYPE_SELECT.value && SEARCH_TYPE_SELECT.value || EXACT_JOIN_STR;
+    let result = str.split(SPLIT_STR).join(joinStr);
+    if (joinStr === EXACT_JOIN_STR) {
+        result = `"${result}"`;
+    }
+    return result;
+}
+
+/**
+ * Just log the error to the console.
+ */
+let reportError = (error) => console.error(`Could not search: ${error}`);
+
+async function saveDataToStorage(key, data) {
+    console.log(`Saving ${key} to local storage with data `, data, '...');
+    await browser.storage.local.set({ [key]: data });
+}
+
+async function loadDataFromStorage(key) {
+    console.log(`Loading ${key} from local storage...`);
+    return await browser.storage.local.get(key);
+}
+
+async function deleteDataFromStorage(key) {
+    console.log(`Deleting ${key} from local storage...`);
+    await browser.storage.local.remove(key);
+}
+
 console.log('Loading WAM Stock Search...')
 /**
 * When the popup loads, inject a content script into the active tab,
@@ -221,17 +261,3 @@ console.log('Loading WAM Stock Search...')
 * If we couldn't inject the script, handle the error.
 */
 init().catch(reportExecuteScriptError);
-
-async function loadSavedOrgSelect() {
-    console.log('Loading saved org...');
-    let { selectedOrg } = await browser.storage.local.get('selectedOrg');
-    console.log(`Saved selected org: ${selectedOrg}`);
-    if (!!selectedOrg && (selectedOrg in ORGS_DATA)) {
-        ORG_SELECT.value = selectedValue;
-    }
-}
-
-async function saveOrg(selectedOrg) {
-    console.log(`Saving org selection ${selectedOrg}...`);
-    await browser.storage.local.set({ selectedOrg });
-}
